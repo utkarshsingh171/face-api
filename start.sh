@@ -1,2 +1,2 @@
 #!/bin/bash
-uvicorn api:app --host 0.0.0.0 --port $PORT
+uvicorn test_api:app --host 0.0.0.0 --port $PORT
