@@ -6,8 +6,8 @@ SIMILARITY_THRESHOLD = 0.45
 # -----------------------------
 # LOAD MODEL (ONLY ONCE)
 # -----------------------------
-app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
-app.prepare(ctx_id=0, det_size=(640, 640))
+app = FaceAnalysis(name="buffalo_sc", providers=["CPUExecutionProvider"])
+app.prepare(ctx_id=0, det_size=(320, 320))
 
 
 # -----------------------------
