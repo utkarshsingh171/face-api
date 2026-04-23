@@ -1,7 +1,7 @@
 import numpy as np
 from insightface.app import FaceAnalysis
 
-SIMILARITY_THRESHOLD = 0.45
+SIMILARITY_THRESHOLD = 0.40
 
 # -----------------------------
 # LOAD MODEL (ONLY ONCE)
