@@ -143,32 +143,27 @@ async def register_user_face(user_id: str = Form(...), image: UploadFile = File(
 
 
 @app.post("/user/search")
-async def search_event_pool(
-        event_id: str = Form(...),
-        user_id: str = Form(...),
-        operation: str = Form("OR")
-):
-    """Search images where the user appears."""
+async def search_event_pool(event_id: str = Form(...), user_id: str = Form(...), operation: str = Form("OR")):
     try:
+        # 1. Fetch User's Reference Embeddings (Vectors)
         user_doc = db.collection('users').document(user_id).get()
         if not user_doc.exists:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Unwrap vectors from Firestore format
-        user_data = user_doc.to_dict()
-        ref_vectors = [item["vector"] for item in user_data.get('reference_vectors', [])]
+        user_vectors = [item["vector"] for item in user_doc.to_dict().get('reference_vectors', [])]
 
-        pool_query = db.collection('images').where('event_id', '==', event_id).stream()
+        # 2. Query only images belonging to THIS event
+        images_ref = db.collection('images').where('event_id', '==', event_id).stream()
 
-        matched_urls = []
-        for doc in pool_query:
-            data = doc.to_dict()
-            # Unwrap pool vectors
-            db_vectors = [item["vector"] for item in data.get('face_vectors', [])]
+        matches = []
+        for doc in images_ref:
+            img_data = doc.to_dict()
+            pool_vectors = [item["vector"] for item in img_data.get('face_vectors', [])]
 
-            if match_faces(ref_vectors, db_vectors, operation.upper()):
-                matched_urls.append(data.get('image_url'))
+            # 3. Perform the Math (Cosine Similarity)
+            if match_faces(user_vectors, pool_vectors, operation):
+                matches.append(img_data['image_url'])
 
-        return {"matches_found": len(matched_urls), "images": matched_urls}
+        return {"matches": matches, "total": len(matches)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
