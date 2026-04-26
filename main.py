@@ -113,7 +113,6 @@ async def upload_to_pool(
 
 @app.post("/user/reference")
 async def register_user_face(user_id: str = Form(...), image: UploadFile = File(...)):
-    """Saves user's face identity to their profile for cross-device searching."""
     try:
         contents = await image.read()
         np_arr = np.frombuffer(contents, np.uint8)
@@ -122,46 +121,44 @@ async def register_user_face(user_id: str = Form(...), image: UploadFile = File(
         if img is None:
             raise HTTPException(status_code=400, detail="Invalid image file")
 
-        # Extract reference vector
+        # ML processing
         embeddings = extract_embeddings([img])
         if not embeddings:
             raise HTTPException(status_code=400, detail="No face detected in selfie.")
 
-        # Convert to flat list of objects to prevent Firestore Nested Array errors
-        firestore_embeddings = [{"vector": e} for e in embeddings]
-
-        # CLOUDINARY STEP
+        # --- THE FIX: CLOUDINARY UPLOAD ---
         try:
-            print(f"--- CLOUDINARY AUDIT: Uploading reference for user {user_id} ---")
-            # We use no trailing slash in 'folder' to prevent signature errors
+            # We strip any slashes to ensure the signature string is clean
+            clean_folder = f"users/{user_id}/reference".strip("/")
+
             upload_result = cloudinary.uploader.upload(
                 contents,
-                folder=f"users/{user_id}/reference",
-                upload_preset=UPLOAD_PRESET
+                folder=clean_folder,
+                upload_preset=UPLOAD_PRESET,
+                resource_type="image"
             )
             ref_url = upload_result.get("secure_url")
         except Exception as c_err:
-            print(f"❌ Cloudinary Failed: {c_err}")
-            raise HTTPException(status_code=500, detail=f"Cloudinary Error: {str(c_err)}")
+            print(f"❌ Cloudinary Detail: {c_err}")
+            # This will now show the EXACT signature error in Postman
+            raise HTTPException(status_code=500, detail=f"Cloudinary: {str(c_err)}")
 
-        # FIRESTORE STEP
+        # --- FIRESTORE STORAGE ---
         try:
-            print(f"--- FIRESTORE AUDIT: Saving reference to Firestore for user {user_id} ---")
             user_ref = db.collection('users').document(user_id)
             user_ref.set({
-                # Ensure embeddings is a standard list of objects
-                'reference_embeddings': firestore.ArrayUnion(firestore_embeddings),
+                'reference_embeddings': firestore.ArrayUnion(embeddings),
                 'reference_images': firestore.ArrayUnion([ref_url]),
                 'last_updated': firestore.SERVER_TIMESTAMP
             }, merge=True)
         except Exception as f_err:
-            print(f"❌ Firestore Failed: {f_err}")
-            raise HTTPException(status_code=500, detail=f"Firestore Error: {str(f_err)}")
+            print(f"❌ Firestore Detail: {f_err}")
+            raise HTTPException(status_code=500, detail=f"Firestore: {str(f_err)}")
 
         return {"status": "success", "image_url": ref_url}
 
     except Exception as e:
-        print(f"🔥 System Crash: {e}")
+        print(f"🔥 Critical System Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
