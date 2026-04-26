@@ -15,7 +15,7 @@ import cloudinary.uploader
 from model import extract_embeddings, match_faces
 
 app = FastAPI()
-
+db = None
 # --- 1. FIREBASE INITIALIZATION ---
 try:
     if not firebase_admin._apps:
