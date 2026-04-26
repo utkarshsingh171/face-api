@@ -1,8 +1,9 @@
 fastapi
-uvicorn[standard]
-opencv-python-headless
+uvicorn
+python-multipart
 numpy
+opencv-python-headless
 insightface
 onnxruntime
-python-multipart
-Pillow
+cloudinary
+firebase-admin
